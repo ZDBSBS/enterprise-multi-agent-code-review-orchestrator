@@ -52,5 +52,16 @@ Use only values allowed by the schemas.
 Do not add fields outside ReviewReportSchema.
 Do not return Markdown or explanatory text as the final result.
 
+Before producing the final result, verify that pull request data and changed
+files were successfully retrieved.
+
+For a pull request containing changed files:
+- fileReviews must not be empty.
+- Each analyzed file must contain codeQuality, testCoverage, and refactorings.
+- Do not create a successful empty report as a fallback.
+- Do not mark agents as unavailable merely to satisfy the output schema.
+- If required pull request data cannot be retrieved, fail clearly instead of
+  returning an empty ReviewReport.
+  
 If one subagent fails, handle the failure gracefully and continue when possible.`;
 }

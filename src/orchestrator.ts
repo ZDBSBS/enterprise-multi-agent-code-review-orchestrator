@@ -61,6 +61,7 @@ for await (const message of query({
     mcpServers: mcpServersConfig,
     allowedTools: [
       'Task',
+      'mcp__github__*',
       'mcp__eslint__lint'
     ],
     agents,

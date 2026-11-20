@@ -47,11 +47,11 @@
   
   <div class="summary">
     <div class="metric">
-      <div class="metric-value">0</div>
+      <div class="metric-value">82</div>
       <div class="metric-label">Overall Score</div>
     </div>
     <div class="metric">
-      <div class="metric-value">0</div>
+      <div class="metric-value">1</div>
       <div class="metric-label">Files Reviewed</div>
     </div>
     <div class="metric">
@@ -59,20 +59,50 @@
       <div class="metric-label">Critical Issues</div>
     </div>
     <div class="metric">
-      <div class="metric-value">0</div>
+      <div class="metric-value">4</div>
       <div class="metric-label">Tests Needed</div>
     </div>
     <div class="metric">
-      <div class="metric-value">0</div>
+      <div class="metric-value">7</div>
       <div class="metric-label">Refactorings</div>
     </div>
   </div>
 
   <h2>🎯 Top Recommendations</h2>
-  <ul><li>No recommendations at this time.</li></ul>
+  <ul>
+      <li class="rec-high">
+        <span class="priority">[HIGH]</span>
+        <strong>Testing</strong>: Implement comprehensive test suite for fixtures/clean-code.ts with 20-25 test cases covering email validation, input sanitization, user creation workflow, error handling, and edge cases. Current test coverage is 0%.
+        <br><small>Files: fixtures/clean-code.ts</small>
+      </li>
+    
+      <li class="rec-high">
+        <span class="priority">[HIGH]</span>
+        <strong>Security</strong>: Replace permissive email regex with RFC 5322 compliant validation. The current pattern allows invalid formats and could reject legitimate emails. Consider using a dedicated library or more comprehensive regex.
+        <br><small>Files: fixtures/clean-code.ts</small>
+      </li>
+    
+      <li class="rec-high">
+        <span class="priority">[HIGH]</span>
+        <strong>Code Quality</strong>: Extract validation logic into separate validateCreateUserInput() function and implement custom ValidationError class. This improves testability, readability, and error handling.
+        <br><small>Files: fixtures/clean-code.ts</small>
+      </li>
+    
+      <li class="rec-high">
+        <span class="priority">[HIGH]</span>
+        <strong>Security</strong>: Replace timestamp-based ID generation with uuid or crypto.randomUUID() to eliminate theoretical collision risk. Current implementation could generate duplicate IDs if createUser() is called in rapid succession.
+        <br><small>Files: fixtures/clean-code.ts</small>
+      </li>
+    
+      <li class="rec-medium">
+        <span class="priority">[MEDIUM]</span>
+        <strong>Performance</strong>: Simplify sanitizeInput() function to use single regex pass with HTML_ESCAPE_MAP instead of four chained replace() calls. Improves performance for longer strings.
+        <br><small>Files: fixtures/clean-code.ts</small>
+      </li>
+    </ul>
 
   <footer>
-    Generated at 2026-11-20T00:00:00Z • Duration: 0ms
+    Generated at 2026-11-20T00:00:00Z • Duration: 45ms
   </footer>
 </body>
 </html>
