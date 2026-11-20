@@ -1,0 +1,484 @@
+{
+  "pullRequest": {
+    "owner": "udacity",
+    "repo": "cd14715-simple-todo-app",
+    "number": 3
+  },
+  "fileReviews": [
+    {
+      "file": "src/main.ts",
+      "codeQuality": {
+        "file": "src/main.ts",
+        "issues": [
+          {
+            "line": 86,
+            "severity": "high",
+            "category": "security",
+            "description": "Debug logging of user input exposed in console",
+            "suggestion": "Remove console.log debug statement or use logger.debug() instead"
+          },
+          {
+            "line": 46,
+            "severity": "high",
+            "category": "security",
+            "description": "Missing validation of environment variable contents",
+            "suggestion": "Validate that credentials are non-empty strings, not just present"
+          },
+          {
+            "line": 108,
+            "severity": "medium",
+            "category": "security",
+            "description": "No sanitization of file paths in report names",
+            "suggestion": "Sanitize user input to prevent path traversal attacks"
+          },
+          {
+            "line": 26,
+            "severity": "medium",
+            "category": "bug-risk",
+            "description": "Type coercion vulnerability in PR number parsing",
+            "suggestion": "Use parseInt with explicit radix and validate result matches input"
+          },
+          {
+            "line": 104,
+            "severity": "medium",
+            "category": "bug-risk",
+            "description": "Potential race condition on directory creation",
+            "suggestion": "Add try-catch around individual write operations"
+          },
+          {
+            "line": 125,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "Bare string error logging",
+            "suggestion": "Use structured logging with error details instead of string conversion"
+          }
+        ],
+        "overallScore": 68,
+        "summary": "Main entry point has security issues with input validation and debug logging, type safety concerns with number parsing, and best practice violations in error handling"
+      },
+      "testCoverage": {
+        "file": "src/main.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "main()",
+            "priority": "critical",
+            "reasoning": "Entry point with complex branching for argument validation, authentication, and report generation",
+            "suggestedTest": "Create test suite with mocked orchestrator and file system"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests implemented for main.ts. Critical gaps in argument parsing, authentication validation, and report generation."
+      },
+      "refactorings": {
+        "file": "src/main.ts",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "Lines 34-84",
+            "impact": "medium",
+            "description": "Extract authentication validation into separate validateAuthentication() function",
+            "before": "const hasAnthropicApiKey = Boolean(process.env.ANTHROPIC_API_KEY);",
+            "after": "function validateAuthentication(): AuthConfig { ... }",
+            "benefits": "Reduces main() complexity, enables unit testing, improves error handling"
+          }
+        ],
+        "summary": "Three major refactoring opportunities: extract authentication validation (medium), extract CLI parsing (low), extract report generation (medium)"
+      }
+    },
+    {
+      "file": "src/orchestrator.ts",
+      "codeQuality": {
+        "file": "src/orchestrator.ts",
+        "issues": [
+          {
+            "line": 58,
+            "severity": "high",
+            "category": "bug-risk",
+            "description": "Infinite loop potential on streaming message",
+            "suggestion": "Add explicit timeout guard to prevent infinite loops"
+          },
+          {
+            "line": 46,
+            "severity": "high",
+            "category": "bug-risk",
+            "description": "Missing null check on environment variable",
+            "suggestion": "Assert model is non-null explicitly"
+          },
+          {
+            "line": 72,
+            "severity": "medium",
+            "category": "performance",
+            "description": "Excessive max turns configuration at 30",
+            "suggestion": "Reduce to 10-15 to prevent unbounded token consumption"
+          },
+          {
+            "line": 1,
+            "severity": "high",
+            "category": "maintainability",
+            "description": "Minimal documentation and unclear flow control",
+            "suggestion": "Add comprehensive JSDoc comments"
+          }
+        ],
+        "overallScore": 64,
+        "summary": "Orchestrator has critical issues with infinite loop potential, missing validation, excessive configuration, and poor documentation"
+      },
+      "testCoverage": {
+        "file": "src/orchestrator.ts",
+        "hasTests": true,
+        "testFiles": [
+          "tests/orchestrator.test.ts"
+        ],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "reviewPullRequest()",
+            "priority": "critical",
+            "reasoning": "Core orchestration logic only has skeleton tests with no implementations",
+            "suggestedTest": "Mock Claude SDK query and test all message types and error paths"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "Only skeleton tests exist with no actual implementations. Critical gaps in message handling and error scenarios."
+      },
+      "refactorings": {
+        "file": "src/orchestrator.ts",
+        "suggestions": [
+          {
+            "type": "pattern-improvement",
+            "location": "Lines 44-98",
+            "impact": "high",
+            "description": "Extract message handling into separate methods with type guards",
+            "before": "for await (const message of query(...)) { ... complex nested logic ... }",
+            "after": "private isSuccessMessage() { ... } private handleQueryMessage() { ... }",
+            "benefits": "Better testability, improved readability, reduced nesting"
+          }
+        ],
+        "summary": "Major refactoring opportunity to extract message handling logic and replace magic strings with typed constants"
+      }
+    },
+    {
+      "file": "src/utils/rate-limiter.ts",
+      "codeQuality": {
+        "file": "src/utils/rate-limiter.ts",
+        "issues": [
+          {
+            "line": 261,
+            "severity": "critical",
+            "category": "security",
+            "description": "Unsafe async context in Promise constructor",
+            "suggestion": "Remove async keyword - use Promise.resolve() or extract to separate function"
+          },
+          {
+            "line": 219,
+            "severity": "medium",
+            "category": "performance",
+            "description": "Inefficient wait time calculation with max cap",
+            "suggestion": "Implement exponential backoff for wait times"
+          },
+          {
+            "line": 243,
+            "severity": "medium",
+            "category": "performance",
+            "description": "Array re-creation on every prune operation",
+            "suggestion": "Use splice-based removal for large histories"
+          },
+          {
+            "line": 95,
+            "severity": "low",
+            "category": "maintainability",
+            "description": "Magic number 60000 repeated",
+            "suggestion": "Create constant WINDOW_SIZE_MS"
+          }
+        ],
+        "overallScore": 62,
+        "summary": "Critical security issue with async in Promise constructor. Performance issues with wait calculations and array operations. Missing documentation for complex algorithm."
+      },
+      "testCoverage": {
+        "file": "src/utils/rate-limiter.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "class",
+            "location": "RateLimiter",
+            "priority": "high",
+            "reasoning": "Complex sliding window algorithm with no tests",
+            "suggestedTest": "Test all methods: acquire, release, concurrent access, 60-second window"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests for rate limiter. Critical gaps in concurrent access handling and rate limit calculations."
+      },
+      "refactorings": {
+        "file": "src/utils/rate-limiter.ts",
+        "suggestions": [
+          {
+            "type": "modernize",
+            "location": "Lines 256-272",
+            "impact": "medium",
+            "description": "Remove async executor anti-pattern in withRateLimit function",
+            "before": "return new Promise(async (resolve, reject) => { ... }",
+            "after": "export async function withRateLimit(...) { ... }",
+            "benefits": "Removes anti-pattern, simplifies error handling, 50% fewer lines"
+          }
+        ],
+        "summary": "Major modernization opportunity to remove Promise constructor anti-pattern and improve error handling"
+      }
+    },
+    {
+      "file": "src/utils/report-generator.ts",
+      "codeQuality": {
+        "file": "src/utils/report-generator.ts",
+        "issues": [
+          {
+            "line": 19,
+            "severity": "medium",
+            "category": "security",
+            "description": "Unescaped HTML in generated reports",
+            "suggestion": "Escape HTML or use textContent to prevent XSS injection"
+          },
+          {
+            "line": 7,
+            "severity": "medium",
+            "category": "maintainability",
+            "description": "No validation of input data shape",
+            "suggestion": "Add assertions or logging for missing/invalid fields"
+          },
+          {
+            "line": 87,
+            "severity": "low",
+            "category": "maintainability",
+            "description": "CSS hardcoded in string",
+            "suggestion": "Extract to separate CSS or use CSS-in-JS approach"
+          }
+        ],
+        "overallScore": 71,
+        "summary": "Report generator needs HTML escaping for security. No input validation. CSS is hardcoded making maintenance difficult."
+      },
+      "testCoverage": {
+        "file": "src/utils/report-generator.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "generateMarkdownReport()",
+            "priority": "medium",
+            "reasoning": "Report formatting with emoji priority levels and truncation logic not tested",
+            "suggestedTest": "Test priority emojis, truncation limits, and formatting"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests for report generation. Missing coverage for all three report formats and formatting logic."
+      },
+      "refactorings": {
+        "file": "src/utils/report-generator.ts",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "Lines 11-82",
+            "impact": "medium",
+            "description": "Break down large generateMarkdownReport() into smaller reusable formatting functions",
+            "before": "generateMarkdownReport(report: ReviewReport): string { // 70+ lines }",
+            "after": "private formatRecommendation() { ... } private formatFileReview() { ... }",
+            "benefits": "Breaks into testable units, centralizes formatting rules, more maintainable"
+          }
+        ],
+        "summary": "Extract formatting logic from large method and centralize priority emoji mappings"
+      }
+    },
+    {
+      "file": "src/utils/error-handler.ts",
+      "codeQuality": {
+        "file": "src/utils/error-handler.ts",
+        "issues": [
+          {
+            "line": 1,
+            "severity": "medium",
+            "category": "maintainability",
+            "description": "No inline documentation for complex retry algorithm",
+            "suggestion": "Add detailed comments explaining exponential backoff and jitter formula"
+          }
+        ],
+        "overallScore": 76,
+        "summary": "Error handler is generally sound but needs better documentation for retry logic and timeout cleanup."
+      },
+      "testCoverage": {
+        "file": "src/utils/error-handler.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "withRetry()",
+            "priority": "high",
+            "reasoning": "Retry logic with exponential backoff not tested",
+            "suggestedTest": "Test retry attempts, backoff delays, and ReviewError thrown"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests for error handler. Critical gaps in retry logic and timeout handling."
+      },
+      "refactorings": {
+        "file": "src/utils/error-handler.ts",
+        "suggestions": [
+          {
+            "type": "rename",
+            "location": "Lines 123-159",
+            "impact": "low",
+            "description": "Improve timeout error messages to include context and operation name",
+            "before": "errorMessage: string = 'Operation timed out'",
+            "after": "options: TimeoutOptions = { message?, operationName? }",
+            "benefits": "More informative error messages, better debugging information"
+          }
+        ],
+        "summary": "Improve error messages with operational context"
+      }
+    }
+  ],
+  "summary": {
+    "totalFiles": 6,
+    "overallScore": 70,
+    "criticalIssues": 2,
+    "highPriorityTests": 10,
+    "refactoringOpportunities": 10
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "category": "Security",
+      "description": "Fix async executor anti-pattern in Promise constructor in rate-limiter.ts line 261. This creates unhandled promise rejections and prevents proper error handling.",
+      "files": [
+        "src/utils/rate-limiter.ts"
+      ]
+    },
+    {
+      "priority": "critical",
+      "category": "Testing",
+      "description": "Implement comprehensive test suite for main() entry point covering argument validation, authentication scenarios, and report generation with 0% current coverage.",
+      "files": [
+        "src/main.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Security",
+      "description": "Remove debug logging of user input at main.ts line 86 which exposes repository information in production logs. Use logger.debug() instead.",
+      "files": [
+        "src/main.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Testing",
+      "description": "Implement tests for orchestrator.reviewPullRequest() covering all message types, error paths, and structured output validation.",
+      "files": [
+        "src/orchestrator.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Code Quality",
+      "description": "Extract authentication validation logic into separate validateAuthentication() function to improve testability and reduce main complexity by 40 lines.",
+      "files": [
+        "src/main.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Code Quality",
+      "description": "Refactor orchestrator message handling into separate methods with type guards for better testability and maintainability.",
+      "files": [
+        "src/orchestrator.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Performance",
+      "description": "Reduce maxTurns from 30 to 10-15 in orchestrator to prevent unbounded token consumption and unexpected API costs.",
+      "files": [
+        "src/orchestrator.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Testing",
+      "description": "Add comprehensive tests for error-handler.ts (withRetry, withTimeout) and rate-limiter.ts (RateLimiter class) with critical async/concurrency logic.",
+      "files": [
+        "src/utils/error-handler.ts",
+        "src/utils/rate-limiter.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Security",
+      "description": "Escape HTML content in report generator to prevent XSS injection from malicious input in recommendation descriptions.",
+      "files": [
+        "src/utils/report-generator.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Code Quality",
+      "description": "Extract CLI argument parsing and report generation logic into separate functions to improve separation of concerns and testability.",
+      "files": [
+        "src/main.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Code Quality",
+      "description": "Replace magic string agent names with typed constants to prevent typos and enable TypeScript autocomplete.",
+      "files": [
+        "src/orchestrator.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Code Quality",
+      "description": "Modernize withRateLimit function by removing async executor anti-pattern and using try/finally for cleanup.",
+      "files": [
+        "src/utils/rate-limiter.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Documentation",
+      "description": "Add comprehensive JSDoc comments to orchestrator, rate-limiter, and error-handler explaining complex algorithms and state transitions.",
+      "files": [
+        "src/orchestrator.ts",
+        "src/utils/rate-limiter.ts",
+        "src/utils/error-handler.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Testing",
+      "description": "Complete schema validation tests for CodeQualityResultSchema and TestCoverageResultSchema with boundary values and invalid enums.",
+      "files": [
+        "tests/schemas.test.ts"
+      ]
+    },
+    {
+      "priority": "low",
+      "category": "Code Quality",
+      "description": "Break down generateMarkdownReport() into smaller reusable formatting functions and extract emoji mappings.",
+      "files": [
+        "src/utils/report-generator.ts"
+      ]
+    }
+  ],
+  "metadata": {
+    "analyzedAt": "2026-11-20T16:38:00Z",
+    "duration": 240000,
+    "agentVersions": {
+      "code-quality-analyzer": "claude-haiku-4-5-20251001",
+      "test-coverage-analyzer": "claude-haiku-4-5-20251001",
+      "refactoring-suggester": "claude-haiku-4-5-20251001",
+      "orchestrator": "1.0.0"
+    }
+  }
+}

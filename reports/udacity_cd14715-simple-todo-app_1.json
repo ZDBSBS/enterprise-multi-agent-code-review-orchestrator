@@ -1,0 +1,25 @@
+{
+  "pullRequest": {
+    "owner": "udacity",
+    "repo": "cd14715-simple-todo-app",
+    "number": 1
+  },
+  "fileReviews": [],
+  "summary": {
+    "totalFiles": 0,
+    "overallScore": 0,
+    "criticalIssues": 0,
+    "highPriorityTests": 0,
+    "refactoringOpportunities": 0
+  },
+  "recommendations": [],
+  "metadata": {
+    "analyzedAt": "2026-11-20T00:00:00Z",
+    "duration": 0,
+    "agentVersions": {
+      "code-quality-analyzer": "unavailable",
+      "test-coverage-analyzer": "unavailable",
+      "refactoring-suggester": "unavailable"
+    }
+  }
+}

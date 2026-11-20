@@ -1,0 +1,689 @@
+{
+  "pullRequest": {
+    "owner": "udacity",
+    "repo": "cd14715-simple-todo-app",
+    "number": 2
+  },
+  "fileReviews": [
+    {
+      "file": "src/main.ts",
+      "codeQuality": {
+        "file": "src/main.ts",
+        "issues": [
+          {
+            "line": 86,
+            "severity": "high",
+            "category": "best-practice",
+            "description": "Debug console.log statement left in production code path",
+            "suggestion": "Remove 'console.log(\"start here\", owner, repo, prStr)' or replace with proper logging using the logger utility"
+          },
+          {
+            "line": 101,
+            "severity": "medium",
+            "category": "security",
+            "description": "Report filename constructed from user input without sanitization",
+            "suggestion": "Sanitize owner and repo names to prevent path traversal attacks. Use only alphanumeric characters and hyphens."
+          },
+          {
+            "line": 46,
+            "severity": "high",
+            "category": "best-practice",
+            "description": "Inconsistent error handling - uses console.error() instead of configured Winston logger",
+            "suggestion": "Replace console.error with proper logger calls; include stack traces and error context for better debugging"
+          },
+          {
+            "line": 106,
+            "severity": "medium",
+            "category": "bug-risk",
+            "description": "Promise.all without individual error handling for file writes",
+            "suggestion": "Consider wrapping Promise.all in try-catch or handling individual failures, as one failure will reject the entire promise"
+          }
+        ],
+        "overallScore": 72,
+        "summary": "Main entry point has reasonable structure but contains a debug statement, security concerns around filename sanitization, and inconsistent logging patterns. Error handling could be more robust."
+      },
+      "testCoverage": {
+        "file": "src/main.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "main() - line 13",
+            "priority": "critical",
+            "reasoning": "Entry point function with multiple control flow branches. Missing tests for argument validation, environment variable checking, and orchestrator initialization.",
+            "suggestedTest": "Test that main() exits with error code 1 when owner/repo/prStr are missing. Test all authentication paths (Anthropic, AWS Bedrock, neither)."
+          },
+          {
+            "type": "branch",
+            "location": "line 20-24: Missing arguments validation",
+            "priority": "critical",
+            "reasoning": "No test coverage for the initial argument validation that exits when owner, repo, or prStr are not provided.",
+            "suggestedTest": "it('should exit with error when arguments are missing', async () => { process.argv = ['node', 'script.js']; await main(); expect(process.exitCode).toBe(1); })"
+          },
+          {
+            "type": "branch",
+            "location": "line 46-71: Authentication validation",
+            "priority": "critical",
+            "reasoning": "Three authentication paths are not tested: Anthropic API key only, AWS credentials with region, and missing credentials.",
+            "suggestedTest": "Test each auth scenario separately. Mock process.env to verify correct path is taken. Verify console.log calls for auth type."
+          },
+          {
+            "type": "branch",
+            "location": "line 87-131: Error handling in try-catch",
+            "priority": "high",
+            "reasoning": "The try-catch block wrapping orchestrator and report generation is not tested. Failure paths are not covered.",
+            "suggestedTest": "Mock orchestrator to throw error and verify error message is logged and process.exitCode is set to 1"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No test coverage exists for src/main.ts. This is the critical entry point with 7 branches and multiple validation paths that should all be tested. CRITICAL priority."
+      },
+      "refactorings": {
+        "file": "src/main.ts",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "lines 14-32",
+            "impact": "medium",
+            "description": "Extract argument validation logic into a dedicated function for better reusability and testability",
+            "before": "if (!owner || !repo || !prStr) {\n    console.error('Usage: npm run dev -- <owner> <repo> <pr-number>');\n    process.exitCode = 1;\n    return;\n  }\n\n  const prNumber = Number(prStr);\n\n  if (!Number.isInteger(prNumber) || prNumber <= 0) {\n    console.error('Error: PR number must be a positive integer.');\n    process.exitCode = 1;\n    return;\n  }",
+            "after": "function validateArguments(owner: string | undefined, repo: string | undefined, prStr: string | undefined): { valid: boolean; prNumber?: number } {\n  if (!owner || !repo || !prStr) {\n    console.error('Usage: npm run dev -- <owner> <repo> <pr-number>');\n    return { valid: false };\n  }\n\n  const prNumber = Number(prStr);\n  if (!Number.isInteger(prNumber) || prNumber <= 0) {\n    console.error('Error: PR number must be a positive integer.');\n    return { valid: false };\n  }\n\n  return { valid: true, prNumber };\n}\n\nconst validation = validateArguments(owner, repo, prStr);\nif (!validation.valid) {\n  process.exitCode = 1;\n  return;\n}\nconst prNumber = validation.prNumber!;",
+            "benefits": "Improves testability, reduces main() complexity, enables reuse of validation logic, better separation of concerns"
+          }
+        ],
+        "summary": "Main entry point has significant opportunities for refactoring. The main() function mixes concerns: argument validation, authentication checks, orchestration, and report generation. By extracting these into dedicated functions, the code becomes more testable, maintainable, and follows the Single Responsibility Principle."
+      }
+    },
+    {
+      "file": "src/orchestrator.ts",
+      "codeQuality": {
+        "file": "src/orchestrator.ts",
+        "issues": [
+          {
+            "line": 44,
+            "severity": "high",
+            "category": "best-practice",
+            "description": "Missing error handling for ANTHROPIC_MODEL environment variable validation",
+            "suggestion": "Use ReviewError with proper error codes instead of generic Error class for better error context"
+          },
+          {
+            "line": 58,
+            "severity": "medium",
+            "category": "performance",
+            "description": "Missing timeout protection in long-running query stream - could hang indefinitely",
+            "suggestion": "Wrap query stream with timeout protection (e.g., 2 minute timeout) to prevent resource exhaustion"
+          },
+          {
+            "line": 75,
+            "severity": "high",
+            "category": "best-practice",
+            "description": "Generic error messages that lack context - 'Failed to generate review report' is unclear",
+            "suggestion": "Provide specific error messages indicating which step failed and include error codes from ReviewError"
+          },
+          {
+            "line": 50,
+            "severity": "low",
+            "category": "best-practice",
+            "description": "Missing observability - no logging for review progress, agent execution stages",
+            "suggestion": "Add logger.info() calls at key points: review start, agent execution, completion, final score"
+          }
+        ],
+        "overallScore": 68,
+        "summary": "Orchestrator has missing error handling, lacks timeout protection, and provides poor error messages. While the core logic is sound, it needs hardening for production reliability."
+      },
+      "testCoverage": {
+        "file": "src/orchestrator.ts",
+        "hasTests": false,
+        "testFiles": [
+          "tests/orchestrator.test.ts"
+        ],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "reviewPullRequest() - lines 39-99",
+            "priority": "critical",
+            "reasoning": "Core orchestration logic that coordinates all three subagents - absolutely critical to test",
+            "suggestedTest": "Test missing ANTHROPIC_MODEL, successful agent execution, agent failure handling, result validation, timeout scenarios"
+          },
+          {
+            "type": "branch",
+            "location": "Query message processing loop - lines 58-96",
+            "priority": "critical",
+            "reasoning": "Complex async iteration with multiple message type handling paths",
+            "suggestedTest": "Test success message handling, error message handling, schema validation, infinite loop prevention"
+          },
+          {
+            "type": "edge-case",
+            "location": "Query never yields result - line 98",
+            "priority": "high",
+            "reasoning": "Could cause application to hang; no timeout protection currently exists",
+            "suggestedTest": "Mock query that never yields message; verify timeout error is thrown"
+          },
+          {
+            "type": "branch",
+            "location": "Schema validation - lines 76-83",
+            "priority": "high",
+            "reasoning": "Output validation is critical to ensure reports conform to expected format",
+            "suggestedTest": "Test valid structured_output passes validation, invalid output throws error with descriptive message"
+          }
+        ],
+        "coverageEstimate": 5,
+        "summary": "Orchestrator has empty test scaffolding but no implementation. All 60+ lines of core orchestration logic are untested. This is CRITICAL priority as this is the central coordination hub."
+      },
+      "refactorings": {
+        "file": "src/orchestrator.ts",
+        "suggestions": [
+          {
+            "type": "simplify",
+            "location": "lines 50-96",
+            "impact": "high",
+            "description": "Extract query loop into a dedicated function to handle structured output extraction",
+            "before": "const agents = {\n  'code-quality-analyzer': codeQualityAnalyzer,\n  'test-coverage-analyzer': testCoverageAnalyzer,\n  'refactoring-suggester': refactoringSuggester\n};\n\nconst prompt = buildOrchestratorPrompt(owner, repo, prNumber);\n\nfor await (const message of query({ prompt, options: { ... } })) {\n  if (message.type === 'result' && message.subtype === 'success' && message.structured_output) {\n    const parsed = ReviewReportSchema.safeParse(message.structured_output);\n    if (!parsed.success) {\n      throw new Error(`Invalid review report: ${parsed.error.message}`);\n    }\n    return parsed.data;\n  }\n  if (message.type === 'result') {\n    throw new Error(`Code review failed: ${message.subtype}`);\n  }\n}\nthrow new Error('Failed to generate review report');",
+            "after": "const agents = this.buildAgentsMap();\nconst prompt = buildOrchestratorPrompt(owner, repo, prNumber);\nconst queryOptions = this.buildQueryOptions(agents, model);\nreturn await this.executeQuery(prompt, queryOptions);",
+            "benefits": "Significantly reduces method complexity, improves readability, makes query logic reusable, easier to test individual steps, follows SRP"
+          }
+        ],
+        "summary": "The reviewPullRequest method is doing too much: building agents map, creating query options, executing the query, and handling results. Breaking this into smaller, focused methods improves readability, testability, and maintainability."
+      }
+    },
+    {
+      "file": "src/utils/rate-limiter.ts",
+      "codeQuality": {
+        "file": "src/utils/rate-limiter.ts",
+        "issues": [
+          {
+            "line": 261,
+            "severity": "critical",
+            "category": "best-practice",
+            "description": "Using 'async' in Promise constructor is an anti-pattern",
+            "suggestion": "Rewrite withRateLimit to avoid async in Promise constructor. Use Promise.resolve() or direct async function call instead"
+          },
+          {
+            "line": 265,
+            "severity": "medium",
+            "category": "bug-risk",
+            "description": "Missing error handling for rateLimiter.release() - called in success path without try-finally",
+            "suggestion": "Restructure to use try-finally block to guarantee release() is called even if fn() succeeds partially"
+          },
+          {
+            "line": 85,
+            "severity": "low",
+            "category": "best-practice",
+            "description": "Using non-null assertion operator (!) without null check",
+            "suggestion": "Replace '!' operator with explicit null check for better safety"
+          },
+          {
+            "line": 152,
+            "severity": "low",
+            "category": "style",
+            "description": "Redundant variable naming in reduce callback (record vs r)",
+            "suggestion": "Use consistent naming: either 'record' or 'r' throughout the file for clarity"
+          }
+        ],
+        "overallScore": 65,
+        "summary": "Rate limiter implementation has solid logic but contains a critical anti-pattern in the wrapper function (async in Promise constructor) and multiple non-null assertions without proper validation."
+      },
+      "testCoverage": {
+        "file": "src/utils/rate-limiter.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "acquire() method - lines 57-78",
+            "priority": "critical",
+            "reasoning": "Core rate limiting function that controls API access - must be thoroughly tested",
+            "suggestedTest": "Test acquiring when under limits, waiting when concurrent limit reached, waiting when rate limit exceeded"
+          },
+          {
+            "type": "function",
+            "location": "canProceed() method - lines 137-163",
+            "priority": "critical",
+            "reasoning": "Determines if request can proceed; impacts all rate limit decisions",
+            "suggestedTest": "Test all three limit checks: concurrent, per-minute, tokens-per-minute"
+          },
+          {
+            "type": "function",
+            "location": "release() method - lines 84-96",
+            "priority": "high",
+            "reasoning": "Must properly decrement counters and wake waiting requests",
+            "suggestedTest": "Test decrement logic, waiting queue processing, token count updates"
+          },
+          {
+            "type": "edge-case",
+            "location": "Sliding window expiration - line 236-248",
+            "priority": "high",
+            "reasoning": "Old records must be pruned to maintain accurate window calculations",
+            "suggestedTest": "Test records older than 60s are removed, recent records retained"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No test coverage for rate limiter's 215+ lines. All critical rate limiting logic including acquire, release, and sliding window calculations are untested. HIGH priority."
+      },
+      "refactorings": {
+        "file": "src/utils/rate-limiter.ts",
+        "suggestions": [
+          {
+            "type": "modernize",
+            "location": "lines 256-272 - withRateLimit function",
+            "impact": "medium",
+            "description": "Replace Promise constructor anti-pattern with direct async function",
+            "before": "return new Promise(async (resolve, reject) => {\n  try {\n    await rateLimiter.acquire(estimatedTokens);\n    const result = await fn();\n    rateLimiter.release();\n    resolve(result);\n  } catch (error) {\n    rateLimiter.release();\n    reject(error);\n  }\n});",
+            "after": "export async function withRateLimit<T>(\n  rateLimiter: RateLimiter,\n  fn: () => Promise<T>,\n  estimatedTokens: number = 1000\n): Promise<T> {\n  await rateLimiter.acquire(estimatedTokens);\n  try {\n    return await fn();\n  } finally {\n    rateLimiter.release();\n  }\n}",
+            "benefits": "Cleaner async/await code, better error handling, guaranteed cleanup with finally, improved performance, better stack traces"
+          }
+        ],
+        "summary": "Rate limiter's main refactoring opportunity is fixing the Promise anti-pattern. Consider extracting magic numbers to named constants for maintainability."
+      }
+    },
+    {
+      "file": "src/utils/report-generator.ts",
+      "codeQuality": {
+        "file": "src/utils/report-generator.ts",
+        "issues": [
+          {
+            "line": 15,
+            "severity": "high",
+            "category": "security",
+            "description": "HTML report contains unescaped user data - potential XSS vulnerability",
+            "suggestion": "Escape HTML special characters in recommendation descriptions and file names. Use DOMPurify or similar library or manual escaping"
+          },
+          {
+            "line": 93,
+            "severity": "high",
+            "category": "security",
+            "description": "HTML report embeds user data directly in HTML without escaping",
+            "suggestion": "Escape r.description and r.files entries before inserting into HTML template"
+          },
+          {
+            "line": 30,
+            "severity": "high",
+            "category": "security",
+            "description": "HTML template injection vulnerability - i.description embedded without escaping",
+            "suggestion": "Escape HTML entities in i.description and all user-provided content in Markdown report"
+          },
+          {
+            "line": 23,
+            "severity": "high",
+            "category": "security",
+            "description": "Markdown report does not properly escape file paths that could contain special characters",
+            "suggestion": "Properly escape or quote file paths in Markdown output"
+          }
+        ],
+        "overallScore": 48,
+        "summary": "Critical security vulnerabilities in report generation. Multiple instances of unescaped user data embedded in HTML output create XSS risks. The Markdown report also lacks proper escaping."
+      },
+      "testCoverage": {
+        "file": "src/utils/report-generator.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "generateMarkdownReport() - lines 11-82",
+            "priority": "high",
+            "reasoning": "Markdown report generation is used for user-facing output and needs to handle edge cases",
+            "suggestedTest": "Test summary table formatting, recommendation limiting to 5, file reviews section, empty lists, >5 recommendations shows ellipsis"
+          },
+          {
+            "type": "function",
+            "location": "generateHTMLReport() - lines 87-176",
+            "priority": "high",
+            "reasoning": "HTML output must have valid structure and proper escaping for security",
+            "suggestedTest": "Test valid HTML output, CSS styling present, proper HTML entity escaping, metric grid display"
+          },
+          {
+            "type": "function",
+            "location": "generateJSONReport() - lines 181-183",
+            "priority": "low",
+            "reasoning": "JSON generation is relatively straightforward",
+            "suggestedTest": "Test valid JSON output, 2-space indentation"
+          },
+          {
+            "type": "edge-case",
+            "location": "Special character handling in descriptions",
+            "priority": "high",
+            "reasoning": "XSS vulnerability if HTML special characters not escaped in user-provided descriptions",
+            "suggestedTest": "Test with descriptions containing <script>, &, quotes, and other HTML entities"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests for report generator's 180+ lines. All report format generation is untested including Markdown, HTML, and JSON output paths. MEDIUM priority."
+      },
+      "refactorings": {
+        "file": "src/utils/report-generator.ts",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "Lines 14-24 - Emoji mapping and formatting logic",
+            "impact": "medium",
+            "description": "Extract emoji mapping to class property and create formatRecommendation helper",
+            "before": "const formattedRecs = recommendations.slice(0, 5).map((rec, idx) => {\n  const emoji = { critical: '🚨', high: '⚠️', medium: '📝', low: '💡' }[rec.priority];\n  return `${idx + 1}. ${emoji} **${rec.category}**: ${rec.description}...`;\n});",
+            "after": "private readonly PRIORITY_EMOJI: Record<string, string> = {\n  critical: '🚨', high: '⚠️', medium: '📝', low: '💡'\n};\n\nprivate formatRecommendation(rec: Recommendation, index: number): string {\n  return `${index + 1}. ${this.PRIORITY_EMOJI[rec.priority]} **${rec.category}**: ${rec.description}...`;\n}\n\nconst formattedRecs = recommendations.slice(0, 5)\n  .map((rec, idx) => this.formatRecommendation(rec, idx));",
+            "benefits": "DRY principle - centralized emoji mapping, more testable formatting logic, reusable across HTML and Markdown generators"
+          }
+        ],
+        "summary": "Report generator would benefit from extracting emoji mapping and format helpers. Main refactoring is DRY principle improvement with low-medium effort."
+      }
+    },
+    {
+      "file": "src/utils/error-handler.ts",
+      "codeQuality": {
+        "file": "src/utils/error-handler.ts",
+        "issues": [
+          {
+            "line": 65,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "withRetry function lacks clear documentation on exponential backoff behavior",
+            "suggestion": "Add JSDoc comments documenting retry strategy, backoff formula, and jitter behavior"
+          },
+          {
+            "line": 88,
+            "severity": "medium",
+            "category": "bug-risk",
+            "description": "Backoff calculation at line 89 may produce delays exceeding intended maximum",
+            "suggestion": "Ensure backoff cap is applied: use Math.min(maxBackoffMs, calculatedBackoff) where maxBackoffMs is a reasonable upper limit"
+          }
+        ],
+        "overallScore": 78,
+        "summary": "Error handler utilities are well-structured with good error classification. Main gap is comprehensive test coverage and additional documentation of retry strategy."
+      },
+      "testCoverage": {
+        "file": "src/utils/error-handler.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "withRetry() - lines 65-109",
+            "priority": "high",
+            "reasoning": "Retry logic is critical for resilience; backoff calculation must be validated",
+            "suggestedTest": "Test success on first attempt, success after retries, all retries exhausted, exponential backoff calculation, jitter addition"
+          },
+          {
+            "type": "function",
+            "location": "withTimeout() - lines 123-159",
+            "priority": "high",
+            "reasoning": "Timeout protection is essential to prevent hanging requests",
+            "suggestedTest": "Test completion before timeout, timeout exceeded, cleanup verification, custom error messages"
+          },
+          {
+            "type": "function",
+            "location": "isReviewError() - lines 164-166",
+            "priority": "low",
+            "reasoning": "Type guard for error classification",
+            "suggestedTest": "Test true for ReviewError instances, false for other Error types"
+          },
+          {
+            "type": "function",
+            "location": "formatError() - lines 171-179",
+            "priority": "low",
+            "reasoning": "Error formatting utility",
+            "suggestedTest": "Test ReviewError formatting with code, regular Error formatting, non-Error value handling"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "Error handler has zero test coverage for 115+ lines of critical error handling utilities. withRetry and withTimeout are HIGH priority to test."
+      },
+      "refactorings": {
+        "file": "src/utils/error-handler.ts",
+        "suggestions": [
+          {
+            "type": "modernize",
+            "location": "lines 65-109",
+            "impact": "medium",
+            "description": "Modernize withRetry function - extract delay calculation and use cleaner async/await pattern",
+            "before": "export async function withRetry<T>(\n  fn: () => Promise<T>,\n  maxRetries: number = 3,\n  delayMs: number = 1000\n): Promise<T> {\n  let lastError: unknown;\n  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {\n    try {\n      return await fn();\n    } catch (error) {\n      lastError = error;\n      if (attempt < maxRetries) {\n        const backoffDelay = delayMs * Math.pow(2, attempt - 1) + Math.random() * 100;\n        await new Promise<void>((resolve) => { setTimeout(resolve, backoffDelay); });\n      }\n    }\n  }\n  throw new ReviewError('Retry attempts exhausted', ErrorCodes.RETRY_EXHAUSTED, { maxRetries, lastError });\n}",
+            "after": "function calculateBackoffDelay(attempt: number, baseDelayMs: number): number {\n  const exponentialDelay = baseDelayMs * Math.pow(2, attempt - 1);\n  const jitter = Math.random() * 100;\n  return exponentialDelay + jitter;\n}\n\nfunction sleep(ms: number): Promise<void> {\n  return new Promise<void>((resolve) => setTimeout(resolve, ms));\n}\n\nexport async function withRetry<T>(\n  fn: () => Promise<T>,\n  maxRetries: number = 3,\n  delayMs: number = 1000\n): Promise<T> {\n  let lastError: unknown;\n  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {\n    try {\n      return await fn();\n    } catch (error) {\n      lastError = error;\n      if (attempt < maxRetries) {\n        const backoffDelay = calculateBackoffDelay(attempt, delayMs);\n        await sleep(backoffDelay);\n      }\n    }\n  }\n  throw new ReviewError('Retry attempts exhausted', ErrorCodes.RETRY_EXHAUSTED, { maxRetries, lastError });\n}",
+            "benefits": "Separates concerns, makes backoff calculation testable and reusable, clearer delay logic, easier to modify retry behavior"
+          }
+        ],
+        "summary": "Error handler is well-designed and doesn't require extensive refactoring. Focus should be on comprehensive test coverage for the retry and timeout utilities."
+      }
+    },
+    {
+      "file": "src/utils/logger.ts",
+      "codeQuality": {
+        "file": "src/utils/logger.ts",
+        "issues": [
+          {
+            "line": 50,
+            "severity": "low",
+            "category": "best-practice",
+            "description": "Logger helper functions duplicate PR context parameters across multiple functions",
+            "suggestion": "Consider creating a ReviewLogger class that encapsulates PR context to avoid parameter duplication"
+          },
+          {
+            "line": 18,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "Log file paths are hardcoded without directory creation verification",
+            "suggestion": "Either create logs/ directory on startup or use a directory that's guaranteed to exist"
+          }
+        ],
+        "overallScore": 80,
+        "summary": "Logger utilities are well-implemented with good structure. Main opportunity is consolidating PR context parameters through class-based pattern."
+      },
+      "testCoverage": {
+        "file": "src/utils/logger.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "logReviewStart() - lines 46-48",
+            "priority": "medium",
+            "reasoning": "Logs review start with PR context",
+            "suggestedTest": "Verify correct log level, all metadata fields included, timestamp format"
+          },
+          {
+            "type": "function",
+            "location": "logReviewComplete() - lines 50-65",
+            "priority": "medium",
+            "reasoning": "Logs review completion with score and duration",
+            "suggestedTest": "Verify score and duration included, success status set, metadata correct"
+          },
+          {
+            "type": "function",
+            "location": "logReviewError() - lines 67-81",
+            "priority": "medium",
+            "reasoning": "Logs errors with context",
+            "suggestedTest": "Verify error message and stack trace included, failed status set"
+          },
+          {
+            "type": "function",
+            "location": "logAgentStart/Complete() - lines 83-89",
+            "priority": "low",
+            "reasoning": "Logs agent execution lifecycle",
+            "suggestedTest": "Verify agent name and file included, timing information correct"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "Logger helpers have zero test coverage. 85+ lines of logging utilities are untested. MEDIUM priority as logging is support infrastructure."
+      },
+      "refactorings": {
+        "file": "src/utils/logger.ts",
+        "suggestions": [
+          {
+            "type": "pattern-improvement",
+            "location": "Lines 46-89 - Logger helper functions",
+            "impact": "low",
+            "description": "Convert to class-based pattern to consolidate PR context parameters",
+            "before": "export const logReviewStart = (owner: string, repo: string, prNumber: number) => { ... };\nexport const logReviewComplete = (owner: string, repo: string, prNumber: number, score: number, duration: number) => { ... };\nexport const logReviewError = (owner: string, repo: string, prNumber: number, error: Error) => { ... };",
+            "after": "export class ReviewLogger {\n  constructor(private prContext: PRContext) {}\n  start() { logger.info('Starting code review', this.prContext); }\n  complete(score: number, duration: number) { ... }\n  error(error: Error) { ... }\n  agentStart(agentName: string, file: string) { ... }\n}",
+            "benefits": "Eliminates repeated parameter passing, reduces mental load, consistent context across all logs, easier to extend with additional PR context"
+          }
+        ],
+        "summary": "Logger would benefit from class-based pattern to consolidate PR context. This is low effort refactoring with moderate maintainability improvement."
+      }
+    },
+    {
+      "file": "src/config/mcp.config.ts",
+      "codeQuality": {
+        "file": "src/config/mcp.config.ts",
+        "issues": [
+          {
+            "line": 34,
+            "severity": "high",
+            "category": "security",
+            "description": "Empty string default for GITHUB_PERSONAL_ACCESS_TOKEN bypasses authentication",
+            "suggestion": "Either throw error if GITHUB_TOKEN is not set, or handle unauthenticated access explicitly with fallback logic"
+          },
+          {
+            "line": 29,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "Indentation inconsistency - 'type' field not aligned with other config properties",
+            "suggestion": "Fix indentation to match consistent formatting pattern across both github and eslint configs"
+          }
+        ],
+        "overallScore": 85,
+        "summary": "MCP configuration is well-structured with only minor formatting issues and one security concern about silent authentication fallback."
+      },
+      "testCoverage": {
+        "file": "src/config/mcp.config.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "mcpServersConfig export - lines 7-55",
+            "priority": "low",
+            "reasoning": "Configuration validation and structure",
+            "suggestedTest": "Verify correct server types, command paths, environment variable names"
+          },
+          {
+            "type": "edge-case",
+            "location": "GITHUB_TOKEN environment variable handling",
+            "priority": "medium",
+            "reasoning": "Empty string fallback is not tested and may cause silent failures",
+            "suggestedTest": "Verify that GITHUB_TOKEN missing results in proper error or fallback behavior"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "Config file has zero test coverage but LOW priority since it's configuration/data-driven rather than logic."
+      },
+      "refactorings": {
+        "file": "src/config/mcp.config.ts",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "lines 29-36",
+            "impact": "low",
+            "description": "Extract GitHub MCP server configuration into a dedicated function",
+            "before": "github: {\n  type: 'stdio' as const,\n  command: 'npx',\n  args: ['-y', '@modelcontextprotocol/server-github'],\n  env: {\n    GITHUB_PERSONAL_ACCESS_TOKEN: process.env.GITHUB_TOKEN || ''\n  }\n}",
+            "after": "function createGitHubMcpConfig() {\n  return {\n    type: 'stdio' as const,\n    command: 'npx',\n    args: ['-y', '@modelcontextprotocol/server-github'],\n    env: {\n      GITHUB_PERSONAL_ACCESS_TOKEN: process.env.GITHUB_TOKEN || ''\n    }\n  };\n}",
+            "benefits": "Centralizes GitHub configuration, makes it easier to modify, enables reuse, improves testability"
+          }
+        ],
+        "summary": "Configuration file is well-designed. Main action is fixing indentation formatting and addressing the security concern with GITHUB_TOKEN fallback."
+      }
+    }
+  ],
+  "summary": {
+    "totalFiles": 7,
+    "overallScore": 69,
+    "criticalIssues": 7,
+    "highPriorityTests": 15,
+    "refactoringOpportunities": 11
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "category": "Security",
+      "description": "Fix XSS vulnerability in HTML report generation - escape all dynamic content including descriptions, categories, and file names to prevent code injection attacks",
+      "files": [
+        "src/utils/report-generator.ts"
+      ]
+    },
+    {
+      "priority": "critical",
+      "category": "Testing",
+      "description": "Add comprehensive test coverage for orchestrator.ts - all 60+ lines of core orchestration logic are untested. Test message handling, schema validation, timeout scenarios, and agent coordination",
+      "files": [
+        "src/orchestrator.ts",
+        "tests/orchestrator.test.ts"
+      ]
+    },
+    {
+      "priority": "critical",
+      "category": "Testing",
+      "description": "Add comprehensive test coverage for main.ts entry point - test argument validation, authentication checks, and report generation logic. All 120+ lines are untested",
+      "files": [
+        "src/main.ts",
+        "tests/main.test.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Code Quality",
+      "description": "Remove debug logging statement from main.ts line 86 ('start here') and ensure consistent use of Winston logger throughout application",
+      "files": [
+        "src/main.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Reliability",
+      "description": "Add timeout protection to orchestrator query stream to prevent indefinite hangs. Wrap the for-await loop with withTimeout() utility",
+      "files": [
+        "src/orchestrator.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Testing",
+      "description": "Add tests for rate limiter - test acquire/release logic, concurrent limits, sliding window calculations, and backoff behavior. 215+ lines untested",
+      "files": [
+        "src/utils/rate-limiter.ts",
+        "tests/rate-limiter.test.ts"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Testing",
+      "description": "Add tests for error handler utilities - test withRetry exponential backoff, withTimeout behavior, and error classification. 115+ lines untested",
+      "files": [
+        "src/utils/error-handler.ts",
+        "tests/error-handler.test.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Code Quality",
+      "description": "Fix Promise anti-pattern in rate-limiter.ts withRateLimit function - replace 'new Promise(async ...)' with direct async function and try-finally block",
+      "files": [
+        "src/utils/rate-limiter.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Testing",
+      "description": "Add tests for report generator - test Markdown/HTML/JSON output formats, special character escaping, and edge cases like empty lists",
+      "files": [
+        "src/utils/report-generator.ts",
+        "tests/report-generator.test.ts"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Code Quality",
+      "description": "Improve error handling with ReviewError class and proper error codes - replace generic Error throws with descriptive ReviewError instances",
+      "files": [
+        "src/main.ts",
+        "src/orchestrator.ts"
+      ]
+    }
+  ],
+  "metadata": {
+    "analyzedAt": "2026-11-20T16:45:00Z",
+    "duration": 180000,
+    "agentVersions": {
+      "code-quality-analyzer": "1.0.0",
+      "test-coverage-analyzer": "1.0.0",
+      "refactoring-suggester": "1.0.0"
+    }
+  }
+}
